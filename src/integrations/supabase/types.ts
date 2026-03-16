@@ -14,16 +14,111 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alert_subscriptions: {
+        Row: {
+          city_id: string
+          contact: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          city_id: string
+          contact: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          city_id?: string
+          contact?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_subscriptions_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "eruv_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eruv_locations: {
+        Row: {
+          city_name: string
+          created_at: string
+          id: string
+          last_updated: string
+          lat: number
+          lng: number
+          notes: string | null
+          status: Database["public"]["Enums"]["eruv_status"]
+          supervising_rabbi: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          city_name: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          lat: number
+          lng: number
+          notes?: string | null
+          status?: Database["public"]["Enums"]["eruv_status"]
+          supervising_rabbi?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          city_name?: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          lat?: number
+          lng?: number
+          notes?: string | null
+          status?: Database["public"]["Enums"]["eruv_status"]
+          supervising_rabbi?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      eruv_status: "kosher" | "not_kosher"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +245,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      eruv_status: ["kosher", "not_kosher"],
+    },
   },
 } as const
