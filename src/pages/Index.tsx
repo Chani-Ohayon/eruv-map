@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import EruvMap from "@/components/EruvMap";
 import SearchBar from "@/components/SearchBar";
 import StatusCard from "@/components/StatusCard";
 import AlertSubscription from "@/components/AlertSubscription";
 import Footer from "@/components/Footer";
 import { useEruvLocations, type EruvLocation } from "@/hooks/useEruvLocations";
+
+const EruvMap = lazy(() => import("@/components/EruvMap"));
 
 export default function Index() {
   const { data: locations = [], isLoading } = useEruvLocations();
@@ -43,7 +44,9 @@ export default function Index() {
           <p className="text-muted-foreground text-lg">טוען מפה...</p>
         </div>
       ) : (
-        <EruvMap locations={locations} onMarkerClick={setSelectedLocation} selectedCity={flyTo} />
+        <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-muted"><p className="text-muted-foreground text-lg">טוען מפה...</p></div>}>
+          <EruvMap locations={locations} onMarkerClick={setSelectedLocation} selectedCity={flyTo} />
+        </Suspense>
       )}
 
       {/* Status card */}

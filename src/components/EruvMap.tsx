@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import type { EruvLocation } from "@/hooks/useEruvLocations";
@@ -34,6 +35,10 @@ interface EruvMapProps {
 }
 
 export default function EruvMap({ locations, onMarkerClick, selectedCity }: EruvMapProps) {
+  const validLocations = locations.filter(
+    (loc) => typeof loc.lat === "number" && typeof loc.lng === "number" && !isNaN(loc.lat) && !isNaN(loc.lng)
+  );
+
   return (
     <MapContainer
       center={[31.5, 34.85]}
@@ -46,7 +51,7 @@ export default function EruvMap({ locations, onMarkerClick, selectedCity }: Eruv
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {selectedCity && <FlyToCity lat={selectedCity.lat} lng={selectedCity.lng} />}
-      {locations.map((loc) => (
+      {validLocations.map((loc) => (
         <Marker
           key={loc.id}
           position={[loc.lat, loc.lng]}
