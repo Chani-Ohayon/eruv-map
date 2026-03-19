@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEruvLocations, type EruvLocation } from "@/hooks/useEruvLocations";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { LogOut, MapPin, ArrowRight, CheckCircle2, XCircle, Users, Plus, Trash2 } from "lucide-react";
+import { LogOut, MapPin, ArrowRight, CheckCircle2, XCircle, Users, Plus, Trash2, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,12 @@ export default function AdminDashboard() {
   const [newPassword, setNewPassword] = useState("");
   const [addingUser, setAddingUser] = useState(false);
   const [activeTab, setActiveTab] = useState<"eruv" | "users">("eruv");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredLocations = useMemo(() => {
+    if (!searchQuery.trim()) return locations;
+    return locations.filter((loc) => loc.city_name.includes(searchQuery));
+  }, [searchQuery, locations]);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -59,6 +65,8 @@ export default function AdminDashboard() {
 
     if (res.data?.users) {
       setInspectors(res.data.users);
+    } else if (res.error) {
+      console.error("Error fetching inspectors:", res.error);
     }
     setLoadingInspectors(false);
   };
@@ -102,19 +110,26 @@ export default function AdminDashboard() {
     e.preventDefault();
     setAddingUser(true);
 
-    const res = await supabase.functions.invoke("manage-users", {
-      body: { action: "create", email: newEmail, password: newPassword, name: newName },
-    });
+    try {
+      const res = await supabase.functions.invoke("manage-users", {
+        body: { action: "create", email: newEmail, password: newPassword, name: newName },
+      });
 
-    if (res.data?.error) {
-      toast({ title: "שגיאה", description: res.data.error, variant: "destructive" });
-    } else if (res.data?.success) {
-      toast({ title: "נוסף בהצלחה ✓", description: `${newName} (${newEmail})` });
-      setShowAddDialog(false);
-      setNewName("");
-      setNewEmail("");
-      setNewPassword("");
-      fetchInspectors();
+      if (res.error) {
+        const errorBody = res.error?.message || "שגיאה לא ידועה";
+        toast({ title: "שגיאה", description: errorBody, variant: "destructive" });
+      } else if (res.data?.error) {
+        toast({ title: "שגיאה", description: res.data.error, variant: "destructive" });
+      } else if (res.data?.success) {
+        toast({ title: "נוסף בהצלחה ✓", description: `${newName} (${newEmail})` });
+        setShowAddDialog(false);
+        setNewName("");
+        setNewEmail("");
+        setNewPassword("");
+        fetchInspectors();
+      }
+    } catch (err) {
+      toast({ title: "שגיאה", description: "לא ניתן להתחבר לשרת", variant: "destructive" });
     }
     setAddingUser(false);
   };
@@ -181,56 +196,71 @@ export default function AdminDashboard() {
       <main className="container mx-auto p-4 space-y-4 pb-8">
         {activeTab === "eruv" && (
           <>
-            <p className="text-muted-foreground">עדכנו את מצב העירוב בערים. השינויים יופיעו מיד במפה.</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              {locations.map((loc) => (
-                <Card key={loc.id} className="border-2 transition-colors" style={{ borderColor: loc.status === "kosher" ? "hsl(var(--eruv-kosher))" : "hsl(var(--eruv-not-kosher))" }}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <MapPin className="h-5 w-5" />
-                        {loc.city_name}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-bold ${loc.status === "kosher" ? "text-eruv-kosher" : "text-eruv-not-kosher"}`}>
-                          {loc.status === "kosher" ? "כשר" : "פסול"}
-                        </span>
-                        {loc.status === "kosher" ? <CheckCircle2 className="h-5 w-5 text-eruv-kosher" /> : <XCircle className="h-5 w-5 text-eruv-not-kosher" />}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="font-medium">מצב העירוב</Label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">פסול</span>
-                        <Switch
-                          checked={loc.status === "kosher"}
-                          onCheckedChange={(checked) => handleStatusUpdate(loc, checked ? "kosher" : "not_kosher")}
-                        />
-                        <span className="text-sm text-muted-foreground">כשר</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>רב מפקח</Label>
-                      <Input
-                        defaultValue={loc.supervising_rabbi || ""}
-                        onBlur={(e) => handleFieldUpdate(loc.id, "supervising_rabbi", e.target.value)}
-                        placeholder="שם הרב המפקח"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>הערות</Label>
-                      <Input
-                        defaultValue={loc.notes || ""}
-                        onBlur={(e) => handleFieldUpdate(loc.id, "notes", e.target.value)}
-                        placeholder="הערות נוספות"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <p className="text-muted-foreground">עדכנו את מצב העירוב בערים. השינויים יופיעו מיד במפה.</p>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="חפש עיר..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-9"
+                />
+              </div>
             </div>
+            {filteredLocations.length === 0 && searchQuery ? (
+              <p className="text-muted-foreground text-center py-8">לא נמצאו תוצאות עבור "{searchQuery}"</p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {filteredLocations.map((loc) => (
+                  <Card key={loc.id} className="border-2 transition-colors" style={{ borderColor: loc.status === "kosher" ? "hsl(var(--eruv-kosher))" : "hsl(var(--eruv-not-kosher))" }}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <MapPin className="h-5 w-5" />
+                          {loc.city_name}
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold ${loc.status === "kosher" ? "text-eruv-kosher" : "text-eruv-not-kosher"}`}>
+                            {loc.status === "kosher" ? "כשר" : "פסול"}
+                          </span>
+                          {loc.status === "kosher" ? <CheckCircle2 className="h-5 w-5 text-eruv-kosher" /> : <XCircle className="h-5 w-5 text-eruv-not-kosher" />}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-medium">מצב העירוב</Label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">פסול</span>
+                          <Switch
+                            checked={loc.status === "kosher"}
+                            onCheckedChange={(checked) => handleStatusUpdate(loc, checked ? "kosher" : "not_kosher")}
+                          />
+                          <span className="text-sm text-muted-foreground">כשר</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>רב מפקח</Label>
+                        <Input
+                          defaultValue={loc.supervising_rabbi || ""}
+                          onBlur={(e) => handleFieldUpdate(loc.id, "supervising_rabbi", e.target.value)}
+                          placeholder="שם הרב המפקח"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>הערות</Label>
+                        <Input
+                          defaultValue={loc.notes || ""}
+                          onBlur={(e) => handleFieldUpdate(loc.id, "notes", e.target.value)}
+                          placeholder="הערות נוספות"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </>
         )}
 
