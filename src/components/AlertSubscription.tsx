@@ -94,7 +94,7 @@ export default function AlertSubscription({ locations }: AlertSubscriptionProps)
                         <SelectTrigger>
                           <SelectValue placeholder="בחרו עיר" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[2100] max-h-60">
                           {locations.map((loc) => (
                             <SelectItem key={loc.id} value={loc.id}>
                               {loc.city_name}
